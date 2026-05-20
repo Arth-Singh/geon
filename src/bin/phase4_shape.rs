@@ -32,18 +32,23 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Device, Tensor};
 use rand::Rng;
 
-type B = Autodiff<Cuda>;
+// CRITICAL: burn 0.21 #[derive(Module)] requires the struct generic to be
+// literally named `B`. Anything else (`BB`, `Backend`, etc.) causes the
+// macro to silently emit no-op impls (num_params=0, no visit) and training
+// becomes a no-op. So we alias the backend to `Bk` and keep `B` for the
+// struct generic.
+type Bk = Autodiff<Cuda>;
 
-#[derive(Module, Debug, Clone)]
-struct ShapeNet<BB: Backend> {
-    l1: Linear<BB>,
-    l2: Linear<BB>,
-    l3: Linear<BB>,
-    l4: Linear<BB>,
+#[derive(Module, Debug)]
+struct ShapeNet<B: Backend> {
+    l1: Linear<B>,
+    l2: Linear<B>,
+    l3: Linear<B>,
+    l4: Linear<B>,
 }
 
-impl<BB: Backend> ShapeNet<BB> {
-    fn new(hidden: usize, device: &BB::Device) -> Self {
+impl<B: Backend> ShapeNet<B> {
+    fn new(hidden: usize, device: &B::Device) -> Self {
         Self {
             l1: LinearConfig::new(1, hidden).init(device),
             l2: LinearConfig::new(hidden, hidden).init(device),
@@ -52,7 +57,7 @@ impl<BB: Backend> ShapeNet<BB> {
         }
     }
 
-    fn forward(&self, r: Tensor<BB, 2>) -> Tensor<BB, 2> {
+    fn forward(&self, r: Tensor<B, 2>) -> Tensor<B, 2> {
         let h = gelu(self.l1.forward(r));
         let h = gelu(self.l2.forward(h));
         let h = gelu(self.l3.forward(h));
@@ -182,14 +187,14 @@ fn trap<BB: Backend>(integrand: Tensor<BB, 1>, r: Tensor<BB, 1>) -> Tensor<BB, 1
 // ---------- training ----------
 
 fn train(cfg: Cfg) {
-    let device: Device<B> = Default::default();
+    let device: Device<Bk> = Default::default();
     println!("device: {:?}", device);
 
-    let mut net: ShapeNet<B> = ShapeNet::new(cfg.hidden, &device);
-    let mut optim = AdamConfig::new().init::<B, ShapeNet<B>>();
+    let mut net: ShapeNet<Bk> = ShapeNet::new(cfg.hidden, &device);
+    let mut optim = AdamConfig::new().init::<Bk, ShapeNet<Bk>>();
 
-    let r_pin: Tensor<B, 2> =
-        Tensor::<B, 1>::from_floats([cfg.big_r], &device).reshape([1, 1]);
+    let r_pin: Tensor<Bk, 2> =
+        Tensor::<Bk, 1>::from_floats([cfg.big_r], &device).reshape([1, 1]);
 
     let t0 = Instant::now();
 
@@ -201,22 +206,22 @@ fn train(cfg: Cfg) {
         let r_plus: Vec<f32> = r_vec.iter().map(|x| x + h).collect();
         let r_minus: Vec<f32> = r_vec.iter().map(|x| x - h).collect();
 
-        let r_t: Tensor<B, 2> =
-            Tensor::<B, 1>::from_floats(r_vec.as_slice(), &device).reshape([n, 1]);
-        let r_p: Tensor<B, 2> =
-            Tensor::<B, 1>::from_floats(r_plus.as_slice(), &device).reshape([n, 1]);
-        let r_m: Tensor<B, 2> =
-            Tensor::<B, 1>::from_floats(r_minus.as_slice(), &device).reshape([n, 1]);
+        let r_t: Tensor<Bk, 2> =
+            Tensor::<Bk, 1>::from_floats(r_vec.as_slice(), &device).reshape([n, 1]);
+        let r_p: Tensor<Bk, 2> =
+            Tensor::<Bk, 1>::from_floats(r_plus.as_slice(), &device).reshape([n, 1]);
+        let r_m: Tensor<Bk, 2> =
+            Tensor::<Bk, 1>::from_floats(r_minus.as_slice(), &device).reshape([n, 1]);
 
         // ---- f, f', f'' via finite differences on three forward passes ----
-        let f_t: Tensor<B, 1> = net.forward(r_t.clone()).squeeze_dim::<1>(1);
-        let f_p: Tensor<B, 1> = net.forward(r_p).squeeze_dim::<1>(1);
-        let f_m: Tensor<B, 1> = net.forward(r_m).squeeze_dim::<1>(1);
+        let f_t: Tensor<Bk, 1> = net.forward(r_t.clone()).squeeze_dim::<1>(1);
+        let f_p: Tensor<Bk, 1> = net.forward(r_p).squeeze_dim::<1>(1);
+        let f_m: Tensor<Bk, 1> = net.forward(r_m).squeeze_dim::<1>(1);
         let fp_tensor = (f_p.clone() - f_m.clone()) / (2.0 * h);
         let fpp_tensor = (f_p - f_t.clone() * 2.0 + f_m) / (h * h);
 
         // ---- exotic-mass integrand: (v²/12) (f')² r² · 4π ----
-        let r1: Tensor<B, 1> = r_t.clone().squeeze_dim::<1>(1);
+        let r1: Tensor<Bk, 1> = r_t.clone().squeeze_dim::<1>(1);
         let coef = (cfg.v * cfg.v / 12.0) * 4.0 * PI;
         let integrand = fp_tensor.clone().powi_scalar(2) * r1.clone().powi_scalar(2) * coef;
         let exotic = trap(integrand, r1.clone());
@@ -243,7 +248,7 @@ fn train(cfg: Cfg) {
 
         // ---- step ----
         let grads = loss.clone().backward();
-        let grads_params = GradientsParams::from_grads::<B, ShapeNet<B>>(grads, &net);
+        let grads_params = GradientsParams::from_grads::<Bk, ShapeNet<Bk>>(grads, &net);
         net = optim.step(cfg.lr, net, grads_params);
 
         if step % (cfg.steps / 25).max(1) == 0 || step == cfg.steps - 1 {
@@ -271,8 +276,8 @@ fn train(cfg: Cfg) {
     let r_dense_v: Vec<f32> = (0..neval)
         .map(|i| cfg.r_max * (i as f32 + 0.5) / neval as f32)
         .collect();
-    let r_dense: Tensor<B, 2> =
-        Tensor::<B, 1>::from_floats(r_dense_v.as_slice(), &device).reshape([neval, 1]);
+    let r_dense: Tensor<Bk, 2> =
+        Tensor::<Bk, 1>::from_floats(r_dense_v.as_slice(), &device).reshape([neval, 1]);
     let f_learned: Vec<f32> = net.forward(r_dense).into_data().to_vec().unwrap();
 
     let f_canon = canonical_f_cpu(&r_dense_v, cfg.big_r, cfg.sigma);

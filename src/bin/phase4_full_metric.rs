@@ -31,19 +31,19 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Device, Tensor};
 use rand::Rng;
 
-type B = Autodiff<Cuda>;
+type Bk = Autodiff<Cuda>;
 
 // ----------------------------- the network ------------------------------ //
 
-#[derive(Module, Debug, Clone)]
-struct ScalarField<BB: Backend> {
-    l1: Linear<BB>,
-    l2: Linear<BB>,
-    l3: Linear<BB>,
+#[derive(Module, Debug)]
+struct ScalarField<B: Backend> {
+    l1: Linear<B>,
+    l2: Linear<B>,
+    l3: Linear<B>,
 }
 
-impl<BB: Backend> ScalarField<BB> {
-    fn new(hidden: usize, device: &BB::Device) -> Self {
+impl<B: Backend> ScalarField<B> {
+    fn new(hidden: usize, device: &B::Device) -> Self {
         Self {
             l1: LinearConfig::new(2, hidden).init(device),
             l2: LinearConfig::new(hidden, hidden).init(device),
@@ -52,24 +52,24 @@ impl<BB: Backend> ScalarField<BB> {
     }
 
     /// `xrho: [N, 2]` -> `[N]` scalar field value at each point.
-    fn forward(&self, xrho: Tensor<BB, 2>) -> Tensor<BB, 1> {
+    fn forward(&self, xrho: Tensor<B, 2>) -> Tensor<B, 1> {
         let h = gelu(self.l1.forward(xrho));
         let h = gelu(self.l2.forward(h));
         self.l3.forward(h).squeeze_dim::<1>(1)
     }
 }
 
-#[derive(Module, Debug, Clone)]
-struct FullMetric<BB: Backend> {
-    h_tt: ScalarField<BB>,
-    h_tx: ScalarField<BB>,
-    h_xx: ScalarField<BB>,
-    h_rr: ScalarField<BB>,
-    h_pp: ScalarField<BB>,
+#[derive(Module, Debug)]
+struct FullMetric<B: Backend> {
+    h_tt: ScalarField<B>,
+    h_tx: ScalarField<B>,
+    h_xx: ScalarField<B>,
+    h_rr: ScalarField<B>,
+    h_pp: ScalarField<B>,
 }
 
-impl<BB: Backend> FullMetric<BB> {
-    fn new(hidden: usize, device: &BB::Device) -> Self {
+impl<B: Backend> FullMetric<B> {
+    fn new(hidden: usize, device: &B::Device) -> Self {
         Self {
             h_tt: ScalarField::new(hidden, device),
             h_tx: ScalarField::new(hidden, device),
@@ -82,7 +82,7 @@ impl<BB: Backend> FullMetric<BB> {
 
 /// Asymptotic mask: 1 inside bubble length scale L, ≈ 0 outside. `expand`
 /// must apply pointwise.
-fn mask<BB: Backend>(x: Tensor<BB, 1>, rho: Tensor<BB, 1>, big_l: f32) -> Tensor<BB, 1> {
+fn mask<B: Backend>(x: Tensor<B, 1>, rho: Tensor<B, 1>, big_l: f32) -> Tensor<B, 1> {
     let r2 = x.powi_scalar(2) + rho.powi_scalar(2);
     let u = r2 / (big_l * big_l);
     (-u.powi_scalar(2)).exp()
@@ -91,17 +91,17 @@ fn mask<BB: Backend>(x: Tensor<BB, 1>, rho: Tensor<BB, 1>, big_l: f32) -> Tensor
 /// Evaluate the 5 independent components of g at a batch of (x, ρ) points.
 /// Returns five `[N]` tensors in the order (tt, tx, xx, ρρ, φφ-perturbation).
 /// The full `g_μν` is reconstructed by callers since the rest is constant.
-fn eval_components<BB: Backend>(
-    net: &FullMetric<BB>,
-    x: Tensor<BB, 1>,
-    rho: Tensor<BB, 1>,
+fn eval_components<B: Backend>(
+    net: &FullMetric<B>,
+    x: Tensor<B, 1>,
+    rho: Tensor<B, 1>,
     big_l: f32,
 ) -> (
-    Tensor<BB, 1>,
-    Tensor<BB, 1>,
-    Tensor<BB, 1>,
-    Tensor<BB, 1>,
-    Tensor<BB, 1>,
+    Tensor<B, 1>,
+    Tensor<B, 1>,
+    Tensor<B, 1>,
+    Tensor<B, 1>,
+    Tensor<B, 1>,
 ) {
     let xrho = Tensor::stack::<2>(vec![x.clone(), rho.clone()], 1);
     let m = mask(x, rho, big_l);
@@ -119,7 +119,7 @@ fn eval_components<BB: Backend>(
 /// collocation points, penalised against a target. This is a stub — the
 /// real loss is the full NEC contraction below. We keep this around as a
 /// trivially-debuggable shake-out for the training loop.
-fn proxy_loss<BB: Backend>(htx: Tensor<BB, 1>) -> Tensor<BB, 1> {
+fn proxy_loss<B: Backend>(htx: Tensor<B, 1>) -> Tensor<B, 1> {
     htx.powi_scalar(2).mean()
 }
 
@@ -160,22 +160,22 @@ fn sample_batch(cfg: &Cfg) -> (Vec<f32>, Vec<f32>) {
 }
 
 fn train(cfg: Cfg) {
-    let device: Device<B> = Default::default();
+    let device: Device<Bk> = Default::default();
     println!("device: {:?}", device);
     println!(
         "Phase 4 (step 0 — proxy loss) — hidden={}, n_samples={}, steps={}",
         cfg.hidden, cfg.n_samples, cfg.steps,
     );
 
-    let mut net: FullMetric<B> = FullMetric::new(cfg.hidden, &device);
-    let mut optim = AdamConfig::new().init::<B, FullMetric<B>>();
+    let mut net: FullMetric<Bk> = FullMetric::new(cfg.hidden, &device);
+    let mut optim = AdamConfig::new().init::<Bk, FullMetric<Bk>>();
 
     let t0 = Instant::now();
 
     for step in 0..cfg.steps {
         let (xs, rhos) = sample_batch(&cfg);
-        let x = Tensor::<B, 1>::from_floats(xs.as_slice(), &device);
-        let rho = Tensor::<B, 1>::from_floats(rhos.as_slice(), &device);
+        let x = Tensor::<Bk, 1>::from_floats(xs.as_slice(), &device);
+        let rho = Tensor::<Bk, 1>::from_floats(rhos.as_slice(), &device);
 
         // For Phase 4 step 0 we only train h_tx, with a proxy objective:
         // drive |h_tx|² to ~0.25 at the origin (so an off-diagonal exists)
@@ -189,7 +189,7 @@ fn train(cfg: Cfg) {
         let loss = proxy_loss(htx);
 
         let grads = loss.clone().backward();
-        let grads_params = GradientsParams::from_grads::<B, FullMetric<B>>(grads, &net);
+        let grads_params = GradientsParams::from_grads::<Bk, FullMetric<Bk>>(grads, &net);
         net = optim.step(cfg.lr, net, grads_params);
 
         if step % (cfg.steps / 20).max(1) == 0 || step == cfg.steps - 1 {

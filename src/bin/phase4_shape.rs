@@ -101,6 +101,15 @@ struct Cfg {
 
 impl Default for Cfg {
     fn default() -> Self {
+        // NOTE: first-run debugging defaults. v0 of the Rust port matched
+        // the Python v3 hyperparams exactly but produced zero learning. We
+        // back off aggressively here:
+        //   - lambda_interior / exterior reduced 10x (gradient was dominated
+        //     by huge constant constraint penalty -> no signal)
+        //   - lr raised 10x to push past sigmoid saturation
+        //   - h_fd raised 10x to escape fp32 cancellation noise in f''
+        //   - lambda_smooth zeroed for the first pass — re-enable once we
+        //     confirm the constraints converge.
         Self {
             steps: 6000,
             n_samples: 600,
@@ -109,12 +118,12 @@ impl Default for Cfg {
             delta: 0.4,
             r_max: 8.0,
             v: 1.0,
-            h_fd: 1e-3,
-            lambda_interior: 1e5,
-            lambda_exterior: 1e5,
-            lambda_pin: 1e4,
-            lambda_smooth: 1e-3,
-            lr: 1e-3,
+            h_fd: 1e-2,
+            lambda_interior: 1e4,
+            lambda_exterior: 1e4,
+            lambda_pin: 1e3,
+            lambda_smooth: 0.0,
+            lr: 1e-2,
             hidden: 128,
         }
     }

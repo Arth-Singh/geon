@@ -51,13 +51,15 @@ fn main() {
 
         let y = net.forward(x);
         let loss = (y - 1.0).powi_scalar(2).mean();
-
-        let grads = loss.clone().backward();
+        let loss_val = loss.clone().into_scalar();
+        // Backward on the original (un-cloned) loss tensor — clone() may
+        // detach the autograd graph in burn 0.21.
+        let grads = loss.backward();
         let gp = GradientsParams::from_grads::<B, Net<B>>(grads, &net);
         net = optim.step(lr, net, gp);
 
         if step % 100 == 0 || step == 999 {
-            println!("step {step:4}  loss={:.6e}", loss.into_scalar());
+            println!("step {step:4}  loss={:.6e}", loss_val);
         }
     }
     println!("\nIf loss is <1e-3 after 1000 steps, training plumbing works.");

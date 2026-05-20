@@ -29,6 +29,11 @@ name = "burn_smoke"
 path = "src/bin/burn_smoke.rs"
 required-features = ["cuda"]
 
+[[bin]]
+name = "phase4_shape"
+path = "src/bin/phase4_shape.rs"
+required-features = ["cuda"]
+
 [dependencies]
 nalgebra = "0.33"
 rayon = "1.10"

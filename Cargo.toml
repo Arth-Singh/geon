@@ -30,6 +30,11 @@ path = "src/bin/burn_smoke.rs"
 required-features = ["cuda"]
 
 [[bin]]
+name = "burn_train_sanity"
+path = "src/bin/burn_train_sanity.rs"
+required-features = ["cuda"]
+
+[[bin]]
 name = "phase4_shape"
 path = "src/bin/phase4_shape.rs"
 required-features = ["cuda"]

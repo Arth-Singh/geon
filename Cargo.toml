@@ -56,3 +56,12 @@ debug = false
 
 [profile.dev]
 opt-level = 1
+
+# `cargo build --profile=fast` — for burn iteration on the B200. Skips LTO
+# (5+ min on burn_smoke alone) and keeps codegen parallel. Still optimised
+# enough that wall-clock training time isn't dominated by Rust overhead.
+[profile.fast]
+inherits = "release"
+lto = "off"
+codegen-units = 16
+opt-level = 3

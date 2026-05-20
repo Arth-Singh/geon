@@ -177,7 +177,7 @@ fn train(cfg: Cfg) {
     println!("device: {:?}", device);
 
     let mut net: ShapeNet<B> = ShapeNet::new(cfg.hidden, &device);
-    let mut optim = AdamConfig::new().init();
+    let mut optim = AdamConfig::new().init::<B, ShapeNet<B>>();
 
     let r_pin: Tensor<B, 2> =
         Tensor::<B, 1>::from_floats([cfg.big_r], &device).reshape([1, 1]);

@@ -168,7 +168,7 @@ fn train(cfg: Cfg) {
     );
 
     let mut net: FullMetric<B> = FullMetric::new(cfg.hidden, &device);
-    let mut optim = AdamConfig::new().init();
+    let mut optim = AdamConfig::new().init::<B, FullMetric<B>>();
 
     let t0 = Instant::now();
 

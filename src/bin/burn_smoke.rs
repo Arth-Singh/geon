@@ -9,6 +9,7 @@ use burn::backend::{Autodiff, Cuda};
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::tensor::activation::{gelu, sigmoid};
+use burn::backend::BackendTypes;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
@@ -38,7 +39,7 @@ impl<BB: Backend> Mlp<BB> {
 }
 
 fn main() {
-    let device = <B as Backend>::Device::default();
+    let device = <B as BackendTypes>::Device::default();
     println!("backend: Autodiff<Cuda>  device: {:?}", &device);
 
     let net: Mlp<B> = Mlp::new(&device);

@@ -1,0 +1,12 @@
+/target
+
+# build
+target/
+
+# rendered outputs — showcase copies live in docs/, raw outputs are ephemeral
+outputs/
+
+# secrets (defense in depth — real key lives at ~/Downloads/.secrets)
+*.key
+*_key
+Arth_key

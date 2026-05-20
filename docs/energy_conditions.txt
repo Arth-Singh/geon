@@ -1,0 +1,49 @@
+
+== Minkowski (sanity, T = 0 expected) ==
+  T_μν k^μ k^ν                      +0.0000e0   [≈ 0]  should be 0
+  Ricci scalar                      +0.0000e0   [≈ 0]  should be 0
+
+== Schwarzschild (sanity, vacuum: T = 0, R = 0) ==
+  r =    5  NEC contraction       -8.2886e-14   [≈ 0]  vacuum → ~0
+  r =    5  Ricci scalar          -6.8435e-13   [≈ 0]  vacuum → ~0
+  r =   10  NEC contraction       -2.6677e-14   [≈ 0]  vacuum → ~0
+  r =   10  Ricci scalar          -2.2313e-13   [≈ 0]  vacuum → ~0
+  r =   30  NEC contraction       -3.5784e-16   [≈ 0]  vacuum → ~0
+  r =   30  Ricci scalar          +4.7161e-14   [≈ 0]  vacuum → ~0
+
+== Alcubierre warp bubble (expecting NEC violation across bubble wall) ==
+  scanning along x at y=z=0:
+  x =  -4.00                       -5.3354e-5   [NEC VIOLATED]  
+  x =  -3.20                       -1.5854e-3   [NEC VIOLATED]  
+  x =  -2.40                       -2.4626e-2   [NEC VIOLATED]  
+  x =  -1.60                       +3.7014e-2   [NEC ok]  
+  x =  -0.80                       +6.3394e-3   [NEC ok]  
+  x =   0.00                       +1.7073e-3   [NEC ok]  
+  x =   0.80                       +6.3394e-3   [NEC ok]  
+  x =   1.60                       +3.7014e-2   [NEC ok]  
+  x =   2.40                       -2.4626e-2   [NEC VIOLATED]  
+  x =   3.20                       -1.5854e-3   [NEC VIOLATED]  
+  x =   4.00                       -5.3354e-5   [NEC VIOLATED]  
+  minimum T_μν k^μ k^ν = -2.4626e-2 at x = 2.40  (negative = exotic matter required)
+  ∫ T_kk dx (negative part only, axis only) ≈ -3.2208e-2  (rough exotic-mass proxy)
+
+== Morris–Thorne wormhole (expecting NEC violation near throat) ==
+  scanning along l (proper radial) at θ=π/2, φ=0:
+  l =  -4.00                       -2.7533e-4   [NEC VIOLATED]  
+  l =  -3.20                       -6.2986e-4   [NEC VIOLATED]  
+  l =  -2.40                       -1.7414e-3   [NEC VIOLATED]  
+  l =  -1.60                       -6.2790e-3   [NEC VIOLATED]  
+  l =  -0.80                       -2.9587e-2   [NEC VIOLATED]  
+  l =   0.00                       -7.9577e-2   [NEC VIOLATED]  
+  l =   0.80                       -2.9587e-2   [NEC VIOLATED]  
+  l =   1.60                       -6.2790e-3   [NEC VIOLATED]  
+  l =   2.40                       -1.7414e-3   [NEC VIOLATED]  
+  l =   3.20                       -6.2986e-4   [NEC VIOLATED]  
+  l =   4.00                       -2.7533e-4   [NEC VIOLATED]  
+  minimum T_μν k^μ k^ν = -7.9577e-2 at l = 0.00  (negative ⇒ exotic matter at throat)
+
+  T^μ_ν diagonal at throat (l=0):
+    T[0][0] = -3.9789e-2
+    T[1][1] = -3.9789e-2
+    T[2][2] = +3.9789e-2
+    T[3][3] = +3.9789e-2

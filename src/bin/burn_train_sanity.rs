@@ -41,7 +41,10 @@ fn main() {
     println!("backend: Autodiff<Cuda>  device: {:?}", device);
 
     let mut net: Net<B> = Net::new(&device);
-    println!("net.num_params() = {}", net.num_params());
+    println!(
+        "net.num_params() = {}",
+        <Net<B> as burn::module::Module<B>>::num_params(&net)
+    );
     let mut optim = AdamConfig::new().init::<B, Net<B>>();
     let lr = 1.0_f64;
 

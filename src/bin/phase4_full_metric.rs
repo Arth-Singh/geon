@@ -189,7 +189,7 @@ fn train(cfg: Cfg) {
         let loss = proxy_loss(htx);
 
         let grads = loss.clone().backward();
-        let grads_params = GradientsParams::from_grads(grads, &net);
+        let grads_params = GradientsParams::from_grads::<B, FullMetric<B>>(grads, &net);
         net = optim.step(cfg.lr, net, grads_params);
 
         if step % (cfg.steps / 20).max(1) == 0 || step == cfg.steps - 1 {

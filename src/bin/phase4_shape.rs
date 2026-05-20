@@ -234,7 +234,7 @@ fn train(cfg: Cfg) {
 
         // ---- step ----
         let grads = loss.clone().backward();
-        let grads_params = GradientsParams::from_grads(grads, &net);
+        let grads_params = GradientsParams::from_grads::<B, ShapeNet<B>>(grads, &net);
         net = optim.step(cfg.lr, net, grads_params);
 
         if step % (cfg.steps / 25).max(1) == 0 || step == cfg.steps - 1 {

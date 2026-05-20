@@ -22,7 +22,7 @@ use rand::Rng;
 // name — required by burn's Module derive macro.
 type Bk = Autodiff<Cuda>;
 
-#[derive(Module, Debug, Clone)]
+#[derive(Module, Debug)]
 struct Net<B: Backend> {
     l1: Linear<B>,
     l2: Linear<B>,

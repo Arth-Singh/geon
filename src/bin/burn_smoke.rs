@@ -1,18 +1,18 @@
 //! Burn autodiff smoke test on B200 CUDA. Phase 4 prerequisite.
 //!
-//! Tiny MLP f: R -> R, then verify that burn's reverse-mode autograd
-//! against the CUDA backend agrees with a central finite-difference
-//! computation to better than 1e-3.
+//! Tiny MLP f: R -> R; verify reverse-mode autograd against central finite
+//! differences. To dodge a Module-derive InnerModule issue in burn 0.21,
+//! we keep everything on the Autodiff backend and just don't `require_grad`
+//! the finite-difference tensors — burn skips graph tracking for those.
 
 use burn::backend::{Autodiff, Cuda};
-use burn::module::{AutodiffModule, Module};
+use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::tensor::activation::{gelu, sigmoid};
-use burn::tensor::backend::{AutodiffBackend, Backend};
+use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
 type B = Autodiff<Cuda>;
-type Inner = <B as AutodiffBackend>::InnerBackend;
 
 #[derive(Module, Debug, Clone)]
 struct Mlp<BB: Backend> {
@@ -38,8 +38,8 @@ impl<BB: Backend> Mlp<BB> {
 }
 
 fn main() {
-    let device: <B as Backend>::Device = Default::default();
-    println!("backend: {}  device: {:?}", std::any::type_name::<B>(), &device);
+    let device = <B as Backend>::Device::default();
+    println!("backend: Autodiff<Cuda>  device: {:?}", &device);
 
     let net: Mlp<B> = Mlp::new(&device);
 
@@ -54,19 +54,19 @@ fn main() {
         .require_grad();
     let y = net.forward(x.clone());
     let grads = y.clone().sum().backward();
-    let dy_dx_ad: Vec<f32> = x.grad(&grads).expect("grad on x").into_data().to_vec().unwrap();
+    let dy_dx_ad: Vec<f32> = x.grad(&grads).expect("grad on x").to_data().to_vec().unwrap();
     let y_vec: Vec<f32> = y.into_data().to_vec().unwrap();
 
-    // ---- finite difference on the inner (non-autodiff) backend ----
-    let net_fd: Mlp<Inner> = net.valid();
-    let device_inner: <Inner as Backend>::Device = Default::default();
+    // ---- finite difference, same backend, NO require_grad ----
     let h = 1e-3_f32;
     let xs_p: Vec<f32> = xs.iter().map(|v| v + h).collect();
     let xs_m: Vec<f32> = xs.iter().map(|v| v - h).collect();
-    let xp: Tensor<Inner, 2> = Tensor::<Inner, 1>::from_floats(xs_p.as_slice(), &device_inner).reshape([n, 1]);
-    let xm: Tensor<Inner, 2> = Tensor::<Inner, 1>::from_floats(xs_m.as_slice(), &device_inner).reshape([n, 1]);
-    let yp: Vec<f32> = net_fd.forward(xp).into_data().to_vec().unwrap();
-    let ym: Vec<f32> = net_fd.forward(xm).into_data().to_vec().unwrap();
+    let xp: Tensor<B, 2> =
+        Tensor::<B, 1>::from_floats(xs_p.as_slice(), &device).reshape([n, 1]);
+    let xm: Tensor<B, 2> =
+        Tensor::<B, 1>::from_floats(xs_m.as_slice(), &device).reshape([n, 1]);
+    let yp: Vec<f32> = net.forward(xp).into_data().to_vec().unwrap();
+    let ym: Vec<f32> = net.forward(xm).into_data().to_vec().unwrap();
     let dy_dx_fd: Vec<f32> = (0..n).map(|i| (yp[i] - ym[i]) / (2.0 * h)).collect();
 
     // ---- compare ----

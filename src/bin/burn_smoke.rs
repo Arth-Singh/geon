@@ -14,7 +14,7 @@ use burn::tensor::Tensor;
 type B = Autodiff<Cuda>;
 type Inner = <B as AutodiffBackend>::InnerBackend;
 
-#[derive(Module, Debug)]
+#[derive(Module, Debug, Clone)]
 struct Mlp<BB: Backend> {
     l1: Linear<BB>,
     l2: Linear<BB>,

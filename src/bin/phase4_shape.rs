@@ -200,14 +200,14 @@ fn train(cfg: Cfg) {
             Tensor::<B, 1>::from_floats(r_minus.as_slice(), &device).reshape([n, 1]);
 
         // ---- f, f', f'' via finite differences on three forward passes ----
-        let f_t: Tensor<B, 1> = net.forward(r_t.clone()).squeeze::<1>();
-        let f_p: Tensor<B, 1> = net.forward(r_p).squeeze::<1>();
-        let f_m: Tensor<B, 1> = net.forward(r_m).squeeze::<1>();
+        let f_t: Tensor<B, 1> = net.forward(r_t.clone()).squeeze_dim::<1>(1);
+        let f_p: Tensor<B, 1> = net.forward(r_p).squeeze_dim::<1>(1);
+        let f_m: Tensor<B, 1> = net.forward(r_m).squeeze_dim::<1>(1);
         let fp_tensor = (f_p.clone() - f_m.clone()) / (2.0 * h);
         let fpp_tensor = (f_p - f_t.clone() * 2.0 + f_m) / (h * h);
 
         // ---- exotic-mass integrand: (v²/12) (f')² r² · 4π ----
-        let r1: Tensor<B, 1> = r_t.clone().squeeze::<1>();
+        let r1: Tensor<B, 1> = r_t.clone().squeeze_dim::<1>(1);
         let coef = (cfg.v * cfg.v / 12.0) * 4.0 * PI;
         let integrand = fp_tensor.clone().powi_scalar(2) * r1.clone().powi_scalar(2) * coef;
         let exotic = trap(integrand, r1.clone());
@@ -222,7 +222,7 @@ fn train(cfg: Cfg) {
         let exterior_pen = f_out.powi_scalar(2).mean();
 
         // ---- pin f(R) = 0.5 ----
-        let f_at_r = net.forward(r_pin.clone()).squeeze::<1>();
+        let f_at_r = net.forward(r_pin.clone()).squeeze_dim::<1>(1);
         let pin = (f_at_r - 0.5).powi_scalar(2).mean();
 
         // ---- total ----

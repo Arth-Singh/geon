@@ -55,7 +55,7 @@ impl<BB: Backend> ScalarField<BB> {
     fn forward(&self, xrho: Tensor<BB, 2>) -> Tensor<BB, 1> {
         let h = gelu(self.l1.forward(xrho));
         let h = gelu(self.l2.forward(h));
-        self.l3.forward(h).squeeze::<1>()
+        self.l3.forward(h).squeeze_dim::<1>(1)
     }
 }
 

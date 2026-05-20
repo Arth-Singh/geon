@@ -41,8 +41,9 @@ fn main() {
     println!("backend: Autodiff<Cuda>  device: {:?}", device);
 
     let mut net: Net<B> = Net::new(&device);
+    println!("net.num_params() = {}", net.num_params());
     let mut optim = AdamConfig::new().init::<B, Net<B>>();
-    let lr = 1.0_f64;  // intentionally huge — if loss doesn't move, step is a no-op
+    let lr = 1.0_f64;
 
     for step in 0..1000 {
         let mut rng = rand::rng();

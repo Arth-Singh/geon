@@ -77,7 +77,7 @@ three significant figures in fp64.
 
 ## Phase 3 — neural search over Alcubierre shape functions
 
-`phase3/warp_search.py`, `phase3/warp_search_v2.py`.
+`phase3/warp_search.py`, `phase3/warp_search_v2.py`, `phase3/warp_search_v3.py`.
 
 PyTorch on a single B200 GPU. The shape function `f(r_s)` is parameterised
 by a small MLP (4×128 SiLU); we minimise the integrated exotic-mass proxy
@@ -87,7 +87,7 @@ by a small MLP (4×128 SiLU); we minimise the integrated exotic-mass proxy
 with `Adam` while penalising deviations from the bubble shape constraints.
 Autodiff handles `df/dr_s` cleanly through the MLP.
 
-Three runs:
+Four runs, increasingly honest:
 
 1. **Naive (Phase 3a)**: soft constraints, weight 10. Optimiser cheats —
    collapses the bubble to a near-point at r=0 (where the integrand's r²
@@ -95,13 +95,30 @@ Three runs:
 2. **Loose hard constraints (λ=10³)**: 45% reduction, but constraints
    still violated by 7-10%.
 3. **Tight hard constraints (λ=10⁵, λ_pin=10⁴)**: all constraints
-   satisfied to <2%, learned/canonical = **0.977** — a 2.3% reduction.
+   satisfied to <2%, learned/canonical = 0.977 — apparent 2.3% reduction.
+4. **Phase 3c — falsifiability protocol**: external reviewer hypothesised
+   that the 2.3% in run 3 was quadrature gaming. Re-ran with (a) randomised
+   collocation points each step, (b) smoothness penalty on `∫(f'')² dr`,
+   (c) final evaluation via `scipy.integrate.quad` (adaptive, err ≤ 10⁻⁷).
+   **Result: learned/canonical = 0.9963 across trapezoid n=1024,
+   trapezoid n=10240, AND scipy.quad — all four decimal places agree.**
 
-The structure that buys the 2.3%: the learned shape produces a
-**two-peaked** exotic-mass integrand across the wall instead of canonical
-Alcubierre's single Gaussian-like peak. The canonical tanh shape is
-*near-optimal* but not the variational minimum. See
-`phase3/warp_search_v2_tight.png`.
+The quadrature-gaming hypothesis is falsified by the agreement of the three
+schemes. The actual mechanism in run 3 was that `f''` magnitude was
+unconstrained; the network exploited that flexibility for an inflated
+~2% effect. Under the full protocol (run 4), the robust improvement is
+**0.37%** — small but consistent. The learned shape is *smoother* than
+canonical (TV(f') = 3.69 vs 4.00), which makes the win interpretable rather
+than artefactual.
+
+Honest verdict: in the 1-D Alcubierre shape-function ansatz with matched
+constraints and smoothness regularization, the canonical tanh is
+near-optimal. The next experiment (`Phase 4`) drops the Alcubierre ansatz
+entirely and lets the network learn `g_xx`, `g_tx`, `g_rr` as independent
+neural fields — where degrees of freedom Alcubierre doesn't have actually
+live.
+
+See `docs/warp_search_phase3c.png`.
 
 ## Phase 1.5 — CUDA port for B200 (planned)
 
